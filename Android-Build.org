@@ -1,0 +1,153 @@
+#+TITLE: Android Build Guide 
+* Table of contents :toc:
+- [[#build-guide][Build guide]]
+- [[#requirements][Requirements]]
+- [[#fetch-all-tools][Fetch all tools]]
+- [[#fetch-rom-sources][Fetch Rom sources]]
+- [[#fetch-device-trees][Fetch Device Trees]]
+- [[#pre-building][Pre-Building]]
+- [[#building][Building]]
+- [[#some-other-learning-sources][Some other learning sources]]
+- [[#written-by][written by:]]
+
+* Build guide
+How to build Android Roms:
+In this post we would learn the basics of ROM building
+
+* Requirements
+atleast 200GB of free space, 16GB of RAM, 4core/8thread CPU (preferably newer core i|ryzen 5/7),Fast Internet (we would be downloading over 100GB so mobile data NOT recommended) ,some Linux knowledge, and common sense :P
+
+In this example we would learn how to build LighthouseOS(https://github.com/lighthouse-os) for Alioth (Poco F3/Redmi K40/Mi 11x)
+
+* Fetch all tools 
+Now install the needed dependencies on your distro, since most users would be using ubuntu, this would be it:
+   #+begin_src bash
+   sudo apt install bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5 libncurses5-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev
+   #+end_src 
+
+   we also would need to grab a tool called ~repo~, this would be done manually like so:
+   #+begin_src bash
+   mkdir -p ~/bin
+   curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+   #+end_src
+   and now add ~~/bin/repo~ to path like this (add it to ~/.bashrc or whatever shellrc you use, majority of distros use bash as default):
+   #+begin_src bash
+   if [ -d "$HOME/bin" ] ; then
+       PATH="$HOME/bin:$PATH"
+   fi
+   #+end_src
+* Fetch Rom sources
+Navigate to the manifest repo for the custom rom, i.e for Lighthouse it's https://github.com/lighthouse-os/manifest (if you dont see repo named as manifest, it could have another name like platform_manifest or android (https://github.com/ForkLineageOS/android) or some other name )
+Now read the manifest/Readme file carefully and find the exact commands to sync the repo.
+in case of Lighthouse reading the manifest its basically this:
+
+#+begin_src bash
+mkdir lighthouse # i.e make a folder named lighthouse
+cd lighthouse  # change the current dir to lighthouse
+repo init -u https://github.com/lighthouse-os/manifest.git -b sailboat;  # init the reposotry for lighthouse
+repo sync -c --force-sync --optimized-fetch --no-tags --no-clone-bundle --prune -j$(nproc --all);  #finally sync the repo, note that this is going to download a TON of stuff so stable and fast connection is suggested 
+#+end_src
+
+* Fetch Device Trees
+Now grab the device trees from a Friendly Maintainer for your device ;)
+this is how to clone the deivce and vendor trees:
+#+begin_src bash
+git clone https://github.com/drishal/device_xiaomi_alioth.git -b 12 device/xiaomi/alioth;
+git clone https://github.com/drishal/device_xiaomi_sm8250-common.git -b 12 device/xiaomi/sm8250-common;
+git clone https://github.com/drishal/vendor_xiaomi.git -b 12 vendor/xiaomi;
+git clone git@github.com:drishal/vendor_xiaomi_sm8250-common-extra.git -b 12 vendor/xiaomi/sm8250-common-extra; 
+#+end_src  
+
+Note: all credits to @darkphnx for the device trees :)
+
+this device trees now needs some extra stuff to get working...ask your device tree maintainer for more details if any repo is needed
+   + devicesettings 
+     #+begin_src bash
+     git clone git@github.com:drkphnx/packages_resources_devicesettings.git -b snow packages/resources/devicesettings;
+     #+end_src
+   + gcam
+     #+begin_src bash
+     git clone https://github.com/drkphnx/packages_apps_Gcam.git packages/apps/Gcam
+     #+end_src
+   + hardware/xiaomi
+     #+begin_src bash
+     rm -rf hardware/xiaomi #might not need to rm if already present
+     git clone https://github.com/ProjectRadiant/hardware_xiaomi.git -b twelve hardware/xiaomi
+     #+end_src 
+   + First check if hals for your deivce are present or not, it can be checked with ~ls hardware/qcom-caf/sm8250~ (for sm8250 devices)
+     if not, clone the following:
+     #+begin_src bash
+     git clone https://github.com/ArrowOS/android_hardware_qcom_display.git -b arrow-12.0-caf-sm8250 hardware/qcom-caf/sm8250/display 
+     git clone https://github.com/ArrowOS/android_hardware_qcom_media.git -b arrow-12.0-caf-sm8250 hardware/qcom-caf/sm8250/media 
+     git clone https://github.com/ArrowOS/android_hardware_qcom_audio.git -b arrow-12.0-caf-sm8250 hardware/qcom-caf/sm8250/audio 
+     #+end_src
+ 5. And now finally clone the kernel, for eg in this case N0 kernel
+    #+begin_src bash
+    git clone https://github.com/EmanuelCN/kernel_xiaomi_sm8250.git -b S kernel/xiaomi/alioth
+    #+end_src 
+    All other kernels one can use: 
+    note: this kernel needs proton-clang, so also clone:
+    #+begin_src bash
+    git clone --depth=1 https://github.com/kdrag0n/proton-clang.git prebuilts/clang/host/linux-x86/proton-clang
+    #+end_src
+
+    some other kernels one can use:
+    #+begin_src bash
+    #--------------------OD------------ (EOL)
+    git clone https://github.com/GZR-Kernels/Optimus_Drunk_Alioth.git -b 11.0 kernel/xiaomi/alioth 
+
+    # --------------------arrow---------------- 	
+    git clone https://github.com/ArrowOS-Devices/android_kernel_xiaomi_alioth.git -b arrow-12.0 kernel/xiaomi/alioth  
+
+    # -----------------------Quantic-----------------
+    git clone https://github.com/Official-Ayrton990/android_kernel_xiaomi_sm8250.git -b upstreamed-common kernel/xiaomi/alioth 
+
+    # -----------------------Next kernel-----------------	
+    git clone git@github.com:NextWork123/kernel_xiaomi_sm8250-1.git -b S kernel/xiaomi/alioth
+
+    # -----------------------N0 kernel-----------------	
+    
+    git clone git@github.com:EmanuelCN/kernel_xiaomi_sm8250.git -b S kernel/xiaomi/alioth
+
+    #+end_src
+
+* Pre-Building
+Now we need to optimize sources according to the rom
+so first navigate to device/xiaomi/alioth
+and check for a file like this: either aosp_alioth.mk or lineage_alioth.mk (some other rom specific trees might have a different name).
+In my case its lineage_alioth.mk.
+Now read the manifest again and find whats the name used for the lunch command. For eg in case of lighthouse its shown as:
+#+begin_src bash
+lunch lighthouse_<device_codename>-<build-type>
+#+end_src
+therefore we would rename lineage_alioth.mk (in my tree) to lighthouse_alioth.mk.
+Now open up the lighthouse_alioth.mk and find/replace  ~lineage~ with ~lighthouse~  
+also open up AndroidProducts.mk and again repeat the same (do not rename Androidproducts.mk  tho, just find and replace)
+go back to the source directory
+#+begin_src bash
+cd ../../../
+#+end_src
+And now we are ready for real building :P
+* Building
+Now again go back to manifest and read carefully what does it say for building
+in Lighthouse case its:
+#+begin_src bash
+. build/envsetup.sh
+lunch lighthouse_<device_codename>-<build-type>  #i.e actual command for alioth would be:  lunch lighthouse_alioth-userdebug 
+# and finally 
+make lighthouse
+#+end_src
+Fingers crossed the build does not error out :P
+you can always ask the devs if they are friendly ;)
+
+And once build is success, it would give you the complete path where the flashable zip is located
+Enjoy!
+
+* Some other learning sources
++ Beginner's Guide To The Linux Terminal: https://www.youtube.com/watch?v=s3ii48qYBxA
++ Git Essentials: https://www.youtube.com/watch?v=u1Zvkqjx0Ik 
++ LineageOS build guides: https://wiki.lineageos.org/build_guides 
+ 
+* written by:
+@drishal
+credits to darkphnx for teaching me 
